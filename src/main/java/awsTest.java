@@ -1,13 +1,19 @@
+import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.core.internal.http.AmazonAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.*;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Iterator;
 import java.util.Scanner;
-public class awsTest {
 
+public class awsTest {
     public static void main(String[] args) throws Exception {
         Region region = Region.US_EAST_1;
 
@@ -30,7 +36,7 @@ public class awsTest {
             System.out.println("  3. start instance               4. available regions      ");
             System.out.println("  5. stop instance                6. create instance        ");
             System.out.println("  7. reboot instance              8. list images            ");
-            System.out.println("                                 99. quit                   ");
+            System.out.println("  9. condor_status               99. quit                   ");
             System.out.println("------------------------------------------------------------");
 
             System.out.print("Enter an integer: ");
@@ -82,7 +88,7 @@ public class awsTest {
                         ami_id = id_string.nextLine();
 
                     if(!ami_id.isEmpty())
-                        createInstance(ami_id);
+                        createInstance(ec2Client, ami_id);
                     break;
 
                 case 7:
@@ -95,8 +101,16 @@ public class awsTest {
                     break;
 
                 case 8:
-                    listImages();
+                    listImages(ec2Client);
                     break;
+
+                case 9:
+                    System.out.print("Enter publicDNS: ");
+                    if(id_string.hasNext())
+                        instance_id = id_string.nextLine();
+
+                    if(!instance_id.isEmpty())
+                        condorStatus(ec2Client, instance_id);
 
                 case 99:
                     System.out.println("bye!");
@@ -109,7 +123,7 @@ public class awsTest {
     }
 
     public static void listInstances(Ec2Client ec2Client){
-
+        System.out.println("Listing instances...");
         String nextToken = null;
         try {
             do{
@@ -133,6 +147,7 @@ public class awsTest {
     }
 
     public static void availableZones(Ec2Client ec2Client){
+        System.out.println("Available zones...");
         DescribeAvailabilityZonesResponse zonesResponse = ec2Client.describeAvailabilityZones();
         try {
             for(AvailabilityZone zone : zonesResponse.availabilityZones()){
@@ -164,6 +179,7 @@ public class awsTest {
     }
 
     public static void availableRegions(Ec2Client ec2Client){
+        System.out.println("Available regions...");
         try{
             DescribeRegionsResponse regionsResponse = ec2Client.describeRegions();
             for(software.amazon.awssdk.services.ec2.model.Region region : regionsResponse.regions()){
@@ -190,11 +206,22 @@ public class awsTest {
         System.out.printf("Successfully stopped instance %s", instance_id);
     }
 
-    public static void createInstance(String ami_id){
-
+    public static void createInstance(Ec2Client ec2Client, String ami_id){
+        RunInstancesRequest runInstancesRequest = RunInstancesRequest.builder()
+                .imageId(ami_id)
+                .instanceType(InstanceType.T1_MICRO)
+                .maxCount(1)
+                .minCount(1)
+                .build();
+        RunInstancesResponse runInstancesResponse = ec2Client.runInstances(runInstancesRequest);
+        String instanceId = runInstancesResponse.instances().get(0).instanceId();
+        System.out.printf(
+                "Successfully started EC2 instance %s based on AMI %s",
+                instanceId, ami_id);
     }
 
     public static void rebootInstance(Ec2Client ec2Client, String instance_id){
+        System.out.println("Rebooting...");
         try {
             RebootInstancesRequest rebootInstancesRequest = RebootInstancesRequest.builder()
                     .instanceIds(instance_id)
@@ -208,7 +235,75 @@ public class awsTest {
         }
     }
 
-    public static void listImages(){
+    public static void listImages(Ec2Client ec2Client){
+        System.out.println("Listing images...");
+        DescribeImagesResponse describeImagesResponse = ec2Client.describeImages();
+        for(Image image : describeImagesResponse.images()){
+            System.out.printf(
+                    "Found Image ID %s " +
+                            "with name %s" +
+                            "owned by %s",
+                    image.imageId(),
+                    image.name(),
+                    image.ownerId());
+            System.out.println();
+        }
+    }
+
+    public static void condorStatus(Ec2Client ec2Client, String publicDNS){
+        System.out.println("Connecting SSH...");
+        try {
+            final String username = {username};
+            final int port = {port};
+            final String password = {password};
+            final String privateKey = {path};
+
+            JSch jSch = new JSch();
+            Session session;
+            ChannelExec channelExec;
+
+            jSch.addIdentity(privateKey);
+            System.out.println("identity added");
+
+            session = jSch.getSession(username, publicDNS, port);
+            System.out.println("Session created");
+            session.setPassword(password);
+            session.setConfig("StrictHostKeyChecking", "no");
+            /*session.setConfig("GSSAPIAuthentication","no");
+            session.setServerAliveInterval(120 * 1000);
+            session.setServerAliveCountMax(1000);
+            session.setConfig("TCPKeepAlive","yes");*/
+            session.connect();
+            System.out.println("Session connected");
+
+            channelExec = (ChannelExec) session.openChannel("exec");
+            channelExec.setCommand("condor_status");
+
+            InputStream inputStream = channelExec.getInputStream();
+            channelExec.connect();
+
+            byte[] buffer = new byte[8192];
+            while (true){
+                while (inputStream.available()>0){
+                    int i = inputStream.read(buffer, 0, 8192);
+                    if(i<0) break;
+                    System.out.print(new String(buffer, 0, i));
+                }
+                if(channelExec.isClosed()){
+                    System.out.println("exit");
+                    break;
+                }
+            }
+            channelExec.disconnect();
+            session.disconnect();
+
+        } catch (JSchException e) {
+            System.err.println("JSchException");
+        } catch (IOException e) {
+            System.err.println("IOException");
+        }
+
+
 
     }
 
