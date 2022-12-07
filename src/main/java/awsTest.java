@@ -45,8 +45,7 @@ public class awsTest {
             System.out.println("  3. start instance               4. available regions      ");
             System.out.println("  5. stop instance                6. create instance        ");
             System.out.println("  7. reboot instance              8. list images            ");
-            System.out.println("  9. condor_status               10. translation job        ");
-            System.out.println("  11.list translation job        12. translate text         ");
+            System.out.println("  9. condor_status               10. translate text         ");
             System.out.println("                                 99. quit                   ");
             System.out.println("------------------------------------------------------------");
 
@@ -123,20 +122,8 @@ public class awsTest {
                     if(!instance_id.isEmpty())
                         condorStatus(ec2Client, instance_id);
 
+
                 case 10:
-                    System.out.print("Enter jobID: ");
-                    if(id_string.hasNext())
-                        instance_id = id_string.nextLine();
-
-                    if(!instance_id.isEmpty())
-                        DescribeTrnaslationJob(translateClient, instance_id);
-                    translateClient.close();
-
-                case 11:
-                    ListTranslationJob(translateClient);
-                    translateClient.close();
-
-                case 12:
                     System.out.print("Enter Text: ");
                     if(id_string.hasNext())
                         instance_id = id_string.nextLine();
@@ -286,7 +273,7 @@ public class awsTest {
 
     public static void condorStatus(Ec2Client ec2Client, String publicDNS){
         System.out.println("Connecting SSH...");
-        /*try {
+        try {
             final String username = {username};
             final int port = {port};
             final String password = {password};
@@ -332,43 +319,8 @@ public class awsTest {
             System.err.println("JSchException");
         } catch (IOException e) {
             System.err.println("IOException");
-        }*/
-
-    }
-
-    public static void DescribeTrnaslationJob(TranslateClient translateClient, String id){
-        try {
-            DescribeTextTranslationJobRequest textTranslationJobRequest = DescribeTextTranslationJobRequest.builder()
-                    .jobId(id)
-                    .build();
-
-            DescribeTextTranslationJobResponse jobResponse = translateClient.describeTextTranslationJob(textTranslationJobRequest);
-            System.out.println("The job status is "+jobResponse.textTranslationJobProperties().jobStatus());
-            System.out.println("The source language is "+jobResponse.textTranslationJobProperties().sourceLanguageCode());
-            System.out.println("The target language is "+jobResponse.textTranslationJobProperties().targetLanguageCodes());
-
-        } catch (TranslateException e) {
-            System.err.println(e.getMessage());
-            System.exit(1);
         }
-    }
 
-    public static void ListTranslationJob(TranslateClient translateClient){
-        try {
-            ListTextTranslationJobsRequest listTextTranslationJobsRequest = ListTextTranslationJobsRequest.builder()
-                    .maxResults(10)
-                    .build();
-
-            ListTextTranslationJobsResponse jobsResponse = translateClient.listTextTranslationJobs(listTextTranslationJobsRequest);
-            List<TextTranslationJobProperties> properties = jobsResponse.textTranslationJobPropertiesList();
-            for (TextTranslationJobProperties prop: properties){
-                System.out.println("The job name is: "+prop.jobName());
-                System.out.println("The Job id is: "+prop.jobId());
-            }
-        }catch (TranslateException e){
-            System.err.println(e.getMessage());
-            System.exit(1);
-        }
     }
 
     public static void TranslateText(TranslateClient translateClient, String translate_text){
