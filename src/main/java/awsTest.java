@@ -121,6 +121,7 @@ public class awsTest {
 
                     if(!instance_id.isEmpty())
                         condorStatus(ec2Client, instance_id);
+                    break;
 
 
                 case 10:
@@ -131,6 +132,7 @@ public class awsTest {
                     if(!instance_id.isEmpty())
                         TranslateText(translateClient, instance_id);
                     translateClient.close();
+                    break;
 
 
                 case 99:
